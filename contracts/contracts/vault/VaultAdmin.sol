@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title OUSD Vault Admin Contract
+ * @title OETH Vault Admin Contract
  * @notice The VaultAdmin contract makes configuration and admin calls on the vault.
  * @author Origin Protocol Inc
  */
@@ -15,6 +15,7 @@ import "./VaultStorage.sol";
 
 contract VaultAdmin is VaultStorage {
     using SafeERC20 for IERC20;
+    // using SafeERC20 for IWETH9;
     using StableMath for uint256;
 
     /**
@@ -43,15 +44,6 @@ contract VaultAdmin is VaultStorage {
     ****************************************/
 
     /**
-     * @dev Set address of price provider.
-     * @param _priceProvider Address of price provider
-     */
-    function setPriceProvider(address _priceProvider) external onlyGovernor {
-        priceProvider = _priceProvider;
-        emit PriceProviderUpdated(_priceProvider);
-    }
-
-    /**
      * @dev Set a fee in basis points to be charged for a redeem.
      * @param _redeemFeeBps Basis point fee to be charged
      */
@@ -76,9 +68,9 @@ contract VaultAdmin is VaultStorage {
     }
 
     /**
-     * @dev Sets the minimum amount of OUSD in a mint to trigger an
+     * @dev Sets the minimum amount of OETH in a mint to trigger an
      * automatic allocation of funds afterwords.
-     * @param _threshold OUSD amount with 18 fixed decimals.
+     * @param _threshold OETH amount with 18 fixed decimals.
      */
     function setAutoAllocateThreshold(uint256 _threshold)
         external
@@ -89,9 +81,9 @@ contract VaultAdmin is VaultStorage {
     }
 
     /**
-     * @dev Set a minimum amount of OUSD in a mint or redeem that triggers a
+     * @dev Set a minimum amount of OETH in a mint or redeem that triggers a
      * rebase
-     * @param _threshold OUSD amount with 18 fixed decimals.
+     * @param _threshold OETH amount with 18 fixed decimals.
      */
     function setRebaseThreshold(uint256 _threshold) external onlyGovernor {
         rebaseThreshold = _threshold;
@@ -108,75 +100,22 @@ contract VaultAdmin is VaultStorage {
     }
 
     /**
-     * @dev Set the default Strategy for an asset, i.e. the one which the asset
+     * @dev Set the default Strategy, i.e. the one to which the asset
             will be automatically allocated to and withdrawn from
-     * @param _asset Address of the asset
      * @param _strategy Address of the Strategy
      */
-    function setAssetDefaultStrategy(address _asset, address _strategy)
+    function setDefaultStrategy(address _strategy)
         external
         onlyGovernorOrStrategist
     {
-        emit AssetDefaultStrategyUpdated(_asset, _strategy);
+        emit DefaultStrategyUpdated(_strategy);
         // If its a zero address being passed for the strategy we are removing
         // the default strategy
         if (_strategy != address(0)) {
             // Make sure the strategy meets some criteria
             require(strategies[_strategy].isSupported, "Strategy not approved");
-            IStrategy strategy = IStrategy(_strategy);
-            require(assets[_asset].isSupported, "Asset is not supported");
-            require(
-                strategy.supportsAsset(_asset),
-                "Asset not supported by Strategy"
-            );
         }
-        assetDefaultStrategies[_asset] = _strategy;
-    }
-
-    /**
-     * @dev Set maximum amount of OUSD that can at any point be minted and deployed
-     * to strategy (used only by ConvexOUSDMetaStrategy for now).
-     * @param _threshold OUSD amount with 18 fixed decimals.
-     */
-    function setNetOusdMintForStrategyThreshold(uint256 _threshold)
-        external
-        onlyGovernor
-    {
-        /**
-         * Because `netOusdMintedForStrategy` check in vault core works both ways
-         * (positive and negative) the actual impact of the amount of OUSD minted
-         * could be double the threshold. E.g.:
-         *  - contract has threshold set to 100
-         *  - state of netOusdMinted is -90
-         *  - in effect it can mint 190 OUSD and still be within limits
-         *
-         * We are somewhat mitigating this behaviour by resetting the netOusdMinted
-         * counter whenever new threshold is set. So it can only move one threshold
-         * amount in each direction. This also enables us to reduce the threshold
-         * amount and not have problems with current netOusdMinted being near
-         * limits on either side.
-         */
-        netOusdMintedForStrategy = 0;
-        netOusdMintForStrategyThreshold = _threshold;
-        emit NetOusdMintForStrategyThresholdChanged(_threshold);
-    }
-
-    /**
-     * @dev Add a supported asset to the contract, i.e. one that can be
-     *         to mint OUSD.
-     * @param _asset Address of asset
-     */
-    function supportAsset(address _asset) external onlyGovernor {
-        require(!assets[_asset].isSupported, "Asset already supported");
-
-        assets[_asset] = Asset({ isSupported: true });
-        allAssets.push(_asset);
-
-        // Verify that our oracle supports the asset
-        // slither-disable-next-line unused-return
-        IOracle(priceProvider).price(_asset);
-
-        emit AssetSupported(_asset);
+        defaultStrategy = IStrategy(_strategy);
     }
 
     /**
@@ -198,12 +137,10 @@ contract VaultAdmin is VaultStorage {
     function removeStrategy(address _addr) external onlyGovernor {
         require(strategies[_addr].isSupported, "Strategy not approved");
 
-        for (uint256 i = 0; i < allAssets.length; i++) {
-            require(
-                assetDefaultStrategies[allAssets[i]] != _addr,
-                "Strategy is default for an asset"
-            );
-        }
+        require(
+            address(defaultStrategy) != _addr,
+            "Cannot remove default strategy"
+        );
 
         // Initialize strategyIndex with out of bounds result so function will
         // revert if no valid index found
@@ -236,14 +173,12 @@ contract VaultAdmin is VaultStorage {
      * @notice Move assets from one Strategy to another
      * @param _strategyFromAddress Address of Strategy to move assets from.
      * @param _strategyToAddress Address of Strategy to move assets to.
-     * @param _assets Array of asset address that will be moved
-     * @param _amounts Array of amounts of each corresponding asset to move.
+     * @param _amount Amount of oETH to move.
      */
     function reallocate(
         address _strategyFromAddress,
         address _strategyToAddress,
-        address[] calldata _assets,
-        uint256[] calldata _amounts
+        uint256 _amount
     ) external onlyGovernorOrStrategist {
         require(
             strategies[_strategyFromAddress].isSupported,
@@ -253,16 +188,12 @@ contract VaultAdmin is VaultStorage {
             strategies[_strategyToAddress].isSupported,
             "Invalid to Strategy"
         );
-        require(_assets.length == _amounts.length, "Parameter length mismatch");
 
         IStrategy strategyFrom = IStrategy(_strategyFromAddress);
         IStrategy strategyTo = IStrategy(_strategyToAddress);
 
-        for (uint256 i = 0; i < _assets.length; i++) {
-            require(strategyTo.supportsAsset(_assets[i]), "Asset unsupported");
-            // Withdraw from Strategy and pass other Strategy as recipient
-            strategyFrom.withdraw(address(strategyTo), _assets[i], _amounts[i]);
-        }
+        strategyFrom.withdraw(address(strategyTo), address(wETH), _amount);
+
         // Tell new Strategy to deposit into protocol
         strategyTo.depositAll();
     }
@@ -293,18 +224,6 @@ contract VaultAdmin is VaultStorage {
         require(_basis <= 5000, "basis cannot exceed 50%");
         trusteeFeeBps = _basis;
         emit TrusteeFeeBpsChanged(_basis);
-    }
-
-    /**
-     * @dev Set OUSD Meta strategy
-     * @param _ousdMetaStrategy Address of ousd meta strategy
-     */
-    function setOusdMetaStrategy(address _ousdMetaStrategy)
-        external
-        onlyGovernor
-    {
-        ousdMetaStrategy = _ousdMetaStrategy;
-        emit OusdMetaStrategyUpdated(_ousdMetaStrategy);
     }
 
     /***************************************
@@ -357,43 +276,8 @@ contract VaultAdmin is VaultStorage {
         external
         onlyGovernor
     {
-        require(!assets[_asset].isSupported, "Only unsupported assets");
+        require(_asset != address(wETH), "Only unsupported assets");
         IERC20(_asset).safeTransfer(governor(), _amount);
-    }
-
-    /***************************************
-                    Pricing
-    ****************************************/
-
-    /**
-     * @dev Returns the total price in 18 digit USD for a given asset.
-     *      Never goes above 1, since that is how we price mints
-     * @param asset address of the asset
-     * @return uint256 USD price of 1 of the asset, in 18 decimal fixed
-     */
-    function priceUSDMint(address asset) external view returns (uint256) {
-        uint256 price = IOracle(priceProvider).price(asset);
-        require(price >= MINT_MINIMUM_ORACLE, "Asset price below peg");
-        if (price > 1e8) {
-            price = 1e8;
-        }
-        // Price from Oracle is returned with 8 decimals so scale to 18
-        return price.scaleBy(18, 8);
-    }
-
-    /**
-     * @dev Returns the total price in 18 digit USD for a given asset.
-     *      Never goes below 1, since that is how we price redeems
-     * @param asset Address of the asset
-     * @return uint256 USD price of 1 of the asset, in 18 decimal fixed
-     */
-    function priceUSDRedeem(address asset) external view returns (uint256) {
-        uint256 price = IOracle(priceProvider).price(asset);
-        if (price < 1e8) {
-            price = 1e8;
-        }
-        // Price from Oracle is returned with 8 decimals so scale to 18
-        return price.scaleBy(18, 8);
     }
 
     /***************************************

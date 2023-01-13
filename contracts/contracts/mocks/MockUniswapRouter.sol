@@ -48,6 +48,27 @@ contract MockUniswapRouter is IUniswapV2Router {
         IERC20(tok1).transfer(to, amountOut);
     }
 
+    function swapExactTokensForETH(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        // solhint-disable-next-line no-unused-vars
+        uint256 deadline
+    ) external override returns (uint256[] memory amounts) {
+        address tok0 = path[0];
+        address tok1 = pairMaps[tok0];
+        // Give 1:1
+        uint256 amountOut = amountIn.scaleBy(
+            Helpers.getDecimals(tok1),
+            Helpers.getDecimals(tok0)
+        );
+        require(amountOut >= amountOutMin, "Slippage error");
+        // TODO: Update this
+        IERC20(tok0).transferFrom(msg.sender, address(this), amountIn);
+        IERC20(tok1).transfer(to, amountOut);
+    }
+
     struct ExactInputParams {
         bytes path;
         address recipient;

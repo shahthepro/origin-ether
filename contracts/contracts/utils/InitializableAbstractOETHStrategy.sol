@@ -9,7 +9,7 @@ import { Initializable } from "../utils/Initializable.sol";
 import { Governable } from "../governance/Governable.sol";
 import { IOETHVault } from "../interfaces/IOETHVault.sol";
 
-abstract contract InitializableAbstractStrategy is Initializable, Governable {
+abstract contract InitializableAbstractOETHStrategy is Initializable, Governable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -77,7 +77,7 @@ abstract contract InitializableAbstractStrategy is Initializable, Governable {
         address[] calldata _assets,
         address[] calldata _pTokens
     ) external onlyGovernor initializer {
-        InitializableAbstractStrategy._initialize(
+        InitializableAbstractOETHStrategy._initialize(
             _platformAddress,
             _vaultAddress,
             _rewardTokenAddresses,
@@ -289,10 +289,9 @@ abstract contract InitializableAbstractStrategy is Initializable, Governable {
 
     /**
      * @dev Deposit an amount of asset into the platform
-     * @param _asset               Address for the asset
      * @param _amount              Units of asset to deposit
      */
-    function deposit(address _asset, uint256 _amount) external virtual;
+    function deposit(uint256 _amount) external virtual;
 
     /**
      * @dev Deposit balance of all supported assets into the platform
@@ -302,12 +301,10 @@ abstract contract InitializableAbstractStrategy is Initializable, Governable {
     /**
      * @dev Withdraw an amount of asset from the platform.
      * @param _recipient         Address to which the asset should be sent
-     * @param _asset             Address of the asset
      * @param _amount            Units of asset to withdraw
      */
     function withdraw(
         address _recipient,
-        address _asset,
         uint256 _amount
     ) external virtual;
 
@@ -319,10 +316,9 @@ abstract contract InitializableAbstractStrategy is Initializable, Governable {
     /**
      * @dev Get the total asset value held in the platform.
      *      This includes any interest that was generated since depositing.
-     * @param _asset      Address of the asset
      * @return balance    Total value of the asset in the platform
      */
-    function checkBalance(address _asset)
+    function checkBalance()
         external
         view
         virtual

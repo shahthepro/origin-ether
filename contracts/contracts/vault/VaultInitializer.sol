@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title OUSD VaultInitializer Contract
+ * @title OETH VaultInitializer Contract
  * @notice The Vault contract initializes the vault.
  * @author Origin Protocol Inc
  */
@@ -10,17 +10,15 @@ pragma solidity ^0.8.0;
 import "./VaultStorage.sol";
 
 contract VaultInitializer is VaultStorage {
-    function initialize(address _priceProvider, address _ousd)
+    function initialize(address _oeth, address _weth)
         external
         onlyGovernor
         initializer
     {
-        require(_priceProvider != address(0), "PriceProvider address is zero");
-        require(_ousd != address(0), "oUSD address is zero");
+        require(_oeth != address(0), "oETH address is zero");
 
-        oUSD = OUSD(_ousd);
-
-        priceProvider = _priceProvider;
+        oETH = OETH(_oeth);
+        wETH = IERC20(_weth);
 
         rebasePaused = false;
         capitalPaused = true;
@@ -29,10 +27,10 @@ contract VaultInitializer is VaultStorage {
         redeemFeeBps = 0;
         // Initial Vault buffer of 0%
         vaultBuffer = 0;
-        // Initial allocate threshold of 25,000 OUSD
-        autoAllocateThreshold = 25000e18;
+        // Initial allocate threshold of 25 ETH
+        autoAllocateThreshold = 100 ether;
         // Threshold for rebasing
-        rebaseThreshold = 1000e18;
+        rebaseThreshold = 50 ether;
         // Initialize all strategies
         allStrategies = new address[](0);
     }

@@ -93,3 +93,10 @@ contract ConvexLUSDMetaStrategyProxy is InitializeGovernedUpgradeabilityProxy {
 contract MorphoAaveStrategyProxy is InitializeGovernedUpgradeabilityProxy {
 
 }
+
+/**
+ * @notice OETHProxy delegates calls to a MorphoCompoundStrategy implementation
+ */
+contract OETHProxy is InitializeGovernedUpgradeabilityProxy {
+
+}

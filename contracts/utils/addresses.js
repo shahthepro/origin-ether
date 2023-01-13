@@ -102,6 +102,7 @@ addresses.mainnet.chainlinkUSDT_ETH =
 
 // WETH Token
 addresses.mainnet.WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+addresses.mainnet.aWETH = "0x030bA81f1c18d280636F32af80b9AAd02Cf0854e";
 // Deployed OUSD contracts
 addresses.mainnet.Guardian = "0xbe2AB3d3d8F6a32b96414ebbd865dBD276d3d899"; // ERC 20 owner multisig.
 addresses.mainnet.VaultProxy = "0xe75d77b1865ae93c7eaa3040b038d7aa7bc02f70";

@@ -11,11 +11,13 @@ import { Governable } from "../governance/Governable.sol";
 import { IVault } from "../interfaces/IVault.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
 import { IStrategy } from "../interfaces/IStrategy.sol";
+// import { IWETH9 } from "../interfaces/IWETH9.sol";
 import { IUniswapV2Router } from "../interfaces/uniswap/IUniswapV2Router02.sol";
 import "../utils/Helpers.sol";
 
 contract Harvester is Governable {
     using SafeERC20 for IERC20;
+    // using SafeERC20 for IWETH9;
     using SafeMath for uint256;
     using StableMath for uint256;
 
@@ -54,7 +56,7 @@ contract Harvester is Governable {
     mapping(address => bool) public supportedStrategies;
 
     address public immutable vaultAddress;
-    address public immutable usdtAddress;
+    address public immutable wethAddress;
 
     /**
      * Address receiving rewards proceeds. Initially the Vault contract later will possibly
@@ -65,13 +67,11 @@ contract Harvester is Governable {
     /**
      * @dev Constructor to set up initial internal state
      * @param _vaultAddress Address of the Vault
-     * @param _usdtAddress Address of Tether
      */
-    constructor(address _vaultAddress, address _usdtAddress) {
+    constructor(address _vaultAddress, address _weth) {
         require(address(_vaultAddress) != address(0));
-        require(address(_usdtAddress) != address(0));
         vaultAddress = _vaultAddress;
-        usdtAddress = _usdtAddress;
+        wethAddress = _weth;
     }
 
     /***************************************
@@ -113,7 +113,7 @@ contract Harvester is Governable {
      * @param _harvestRewardBps uint16 amount of reward tokens the caller of the function is rewarded.
      *        Example: 100 == 1%
      * @param _uniswapV2CompatibleAddr Address Address of a UniswapV2 compatible contract to perform
-     *        the exchange from reward tokens to stablecoin (currently hard-coded to USDT)
+     *        the exchange from reward tokens to ETH
      * @param _liquidationLimit uint256 Maximum amount of token to be sold per one swap function call.
      *        When value is 0 there is no limit.
      * @param _doSwapRewardToken bool When true the reward token is being swapped. In a need of (temporarily)
@@ -382,19 +382,18 @@ contract Harvester is Governable {
 
         // This'll revert if there is no price feed
         uint256 oraclePrice = IOracle(priceProvider).price(_swapToken);
-        // Oracle price is 1e8, USDT output is 1e6
+        // Oracle price is 1e8, ETH output is 1e18
         uint256 minExpected = (balanceToSwap *
             oraclePrice *
             (1e4 - tokenConfig.allowedSlippageBps)).scaleBy( // max allowed slippage
-            6,
+            18,
             Helpers.getDecimals(_swapToken) + 8
         ) / 1e4; // fix the max slippage decimal position
 
         // Uniswap redemption path
-        address[] memory path = new address[](3);
+        address[] memory path = new address[](2);
         path[0] = _swapToken;
         path[1] = IUniswapV2Router(tokenConfig.uniswapV2CompatibleAddr).WETH();
-        path[2] = usdtAddress;
 
         // slither-disable-next-line unused-return
         IUniswapV2Router(tokenConfig.uniswapV2CompatibleAddr)
@@ -406,21 +405,16 @@ contract Harvester is Governable {
                 block.timestamp
             );
 
-        IERC20 usdt = IERC20(usdtAddress);
-        uint256 usdtBalance = usdt.balanceOf(address(this));
-
+        uint256 wethBalance = IERC20(wethAddress).balanceOf(address(this));
         uint256 vaultBps = 1e4 - tokenConfig.harvestRewardBps;
-        uint256 rewardsProceedsShare = (usdtBalance * vaultBps) / 1e4;
+        uint256 rewardsProceedsShare = (wethBalance * vaultBps) / 1e4;
 
         require(
             vaultBps > tokenConfig.harvestRewardBps,
             "Address receiving harvest incentive is receiving more rewards than the rewards proceeds address"
         );
 
-        usdt.safeTransfer(rewardProceedsAddress, rewardsProceedsShare);
-        usdt.safeTransfer(
-            _rewardTo,
-            usdtBalance - rewardsProceedsShare // remaining share of the rewards
-        );
+        IERC20(wethAddress).safeTransfer(rewardProceedsAddress, rewardsProceedsShare);
+        IERC20(wethAddress).safeTransfer(_rewardTo, wethBalance - rewardsProceedsShare);
     }
 }

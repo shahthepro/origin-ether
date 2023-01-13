@@ -1,7 +1,7 @@
 {
-  "name": "origin-dollar-contracts",
+  "name": "origin-ether-contracts",
   "version": "0.1.0",
-  "description": "Origin Dollar Contracts",
+  "description": "Origin Ether Contracts",
   "main": "index.js",
   "scripts": {
     "deploy": "(npx hardhat deploy --export '../dapp/network.json') && yarn run copy-interface-artifacts",

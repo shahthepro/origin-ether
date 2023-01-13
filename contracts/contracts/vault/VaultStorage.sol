@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title OUSD VaultStorage Contract
+ * @title OETH VaultStorage Contract
  * @notice The VaultStorage contract defines the storage for the Vault contracts
  * @author Origin Protocol Inc
  */
@@ -14,7 +14,8 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { IStrategy } from "../interfaces/IStrategy.sol";
 import { Governable } from "../governance/Governable.sol";
-import { OUSD } from "../token/OUSD.sol";
+import { OETH } from "../token/OETH.sol";
+// import { IWETH9 } from "../interfaces/IWETH9.sol";
 import { Initializable } from "../utils/Initializable.sol";
 import "../utils/Helpers.sol";
 import { StableMath } from "../utils/StableMath.sol";
@@ -24,10 +25,10 @@ contract VaultStorage is Initializable, Governable {
     using StableMath for uint256;
     using SafeMath for int256;
     using SafeERC20 for IERC20;
+    // using SafeERC20 for IWETH9;
 
-    event AssetSupported(address _asset);
-    event AssetDefaultStrategyUpdated(address _asset, address _strategy);
-    event AssetAllocated(address _asset, address _strategy, uint256 _amount);
+    event DefaultStrategyUpdated(address _strategy);
+    event AssetAllocated(address _strategy, uint256 _amount);
     event StrategyApproved(address _addr);
     event StrategyRemoved(address _addr);
     event Mint(address _addr, uint256 _value);
@@ -37,9 +38,7 @@ contract VaultStorage is Initializable, Governable {
     event RebasePaused();
     event RebaseUnpaused();
     event VaultBufferUpdated(uint256 _vaultBuffer);
-    event OusdMetaStrategyUpdated(address _ousdMetaStrategy);
     event RedeemFeeUpdated(uint256 _redeemFeeBps);
-    event PriceProviderUpdated(address _priceProvider);
     event AllocateThresholdUpdated(uint256 _threshold);
     event RebaseThresholdUpdated(uint256 _threshold);
     event StrategistUpdated(address _address);
@@ -47,14 +46,6 @@ contract VaultStorage is Initializable, Governable {
     event YieldDistribution(address _to, uint256 _yield, uint256 _fee);
     event TrusteeFeeBpsChanged(uint256 _basis);
     event TrusteeAddressChanged(address _address);
-    event NetOusdMintForStrategyThresholdChanged(uint256 _threshold);
-
-    // Assets supported by the Vault, i.e. Stablecoins
-    struct Asset {
-        bool isSupported;
-    }
-    mapping(address => Asset) internal assets;
-    address[] internal allAssets;
 
     // Strategies approved for use by the Vault
     struct Strategy {
@@ -64,8 +55,6 @@ contract VaultStorage is Initializable, Governable {
     mapping(address => Strategy) internal strategies;
     address[] internal allStrategies;
 
-    // Address of the Oracle price provider contract
-    address public priceProvider;
     // Pausing bools
     bool public rebasePaused = false;
     bool public capitalPaused = true;
@@ -78,25 +67,19 @@ contract VaultStorage is Initializable, Governable {
     // Mints over this amount automatically rebase. 18 decimals.
     uint256 public rebaseThreshold;
 
-    OUSD internal oUSD;
+    OETH internal oETH; // Address of OETH token
+    IERC20 public wETH; // Address of WETH token
 
     //keccak256("OUSD.vault.governor.admin.impl");
     bytes32 constant adminImplPosition =
         0xa2bd3d3cf188a41358c8b401076eb59066b09dec5775650c0de4c55187d17bd9;
 
-    // Address of the contract responsible for post rebase syncs with AMMs
-    address private _deprecated_rebaseHooksAddr = address(0);
-
-    // Deprecated: Address of Uniswap
-    // slither-disable-next-line constable-states
-    address private _deprecated_uniswapAddr = address(0);
-
     // Address of the Strategist
     address public strategistAddr = address(0);
 
-    // Mapping of asset address to the Strategy that they should automatically
-    // be allocated to
-    mapping(address => address) public assetDefaultStrategies;
+    // Address of the Strategy that assets should automatically
+    // be allocated to or withdrawn from
+    IStrategy public defaultStrategy;
 
     uint256 public maxSupplyDiff;
 
@@ -105,20 +88,6 @@ contract VaultStorage is Initializable, Governable {
 
     // Amount of yield collected in basis points
     uint256 public trusteeFeeBps;
-
-    // Deprecated: Tokens that should be swapped for stablecoins
-    address[] private _deprecated_swapTokens;
-
-    uint256 constant MINT_MINIMUM_ORACLE = 99800000;
-
-    // Meta strategy that is allowed to mint/burn OUSD without changing collateral
-    address public ousdMetaStrategy = address(0);
-
-    // How much OUSD is currently minted by the strategy
-    int256 public netOusdMintedForStrategy = 0;
-
-    // How much net total OUSD is allowed to be minted by all strategies
-    uint256 public netOusdMintForStrategyThreshold = 0;
 
     /**
      * @dev set the implementation for the admin, this needs to be in a base class else we cannot set it

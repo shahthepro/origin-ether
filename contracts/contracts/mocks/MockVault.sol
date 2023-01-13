@@ -19,24 +19,13 @@ contract MockVault is VaultCore, VaultInitializer {
         return storedTotalValue;
     }
 
-    function _totalValue() internal view override returns (uint256) {
-        return storedTotalValue;
-    }
-
-    function _checkBalance(address _asset)
+    function _checkBalance()
         internal
         view
         override
         returns (uint256 balance)
     {
-        // Avoids rounding errors by returning the total value
-        // in a single currency
-        if (allAssets[0] == _asset) {
-            uint256 decimals = Helpers.getDecimals(_asset);
-            return storedTotalValue.scaleBy(decimals, 18);
-        } else {
-            return 0;
-        }
+        return storedTotalValue;
     }
 
     function setMaxSupplyDiff(uint256 _maxSupplyDiff) external onlyGovernor {

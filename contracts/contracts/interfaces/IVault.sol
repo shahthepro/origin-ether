@@ -2,8 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IVault {
-    event AssetSupported(address _asset);
-    event AssetDefaultStrategyUpdated(address _asset, address _strategy);
+    event DefaultStrategyUpdated(address _strategy);
     event AssetAllocated(address _asset, address _strategy, uint256 _amount);
     event StrategyApproved(address _addr);
     event StrategyRemoved(address _addr);

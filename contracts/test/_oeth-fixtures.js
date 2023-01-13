@@ -68,9 +68,7 @@ async function oethFixture() {
     for (const user of [matt, josh, anna]) {
       // Mint some OETH
       const value = ethers.utils.parseEther("10")
-      await vault.connect(user)["mint()"]({
-        value
-      })
+      await vault.connect(user)["mint(uint256)"](value)
       console.log('-------------------------------------------')
       // console.log("Vault value", (await vault.totalValue()).toString())
       console.log("Vault Balance ", (await vault.checkBalance()).toString())

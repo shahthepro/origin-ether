@@ -78,53 +78,31 @@ forkOnlyDescribe('ForkTest: OETH', function () {
     })
   })
 
-  describe.only("Yeild", async () => {
+  describe("Yeild", async () => {
     it("Ensure yield generation", async () => {
       const fixture = await loadFixture(oethFixture);
-      const { vault, daniel, oeth, weth, morphoAave } = fixture
+      const { vault, daniel, oeth } = fixture
       
-      const log = async () => {
-        console.log('-------------------------------------------')
-        // console.log("Vault value", (await vault.totalValue()).toString())
-        console.log("Vault Balance ", (await vault.checkBalance()).toString())
-        console.log("OETH Supply   ", (await oeth.totalSupply()).toString())
-        console.log("Non-rebase sup", (await oeth.nonRebasingSupply()).toString())
-        console.log("Strat bal     ", (await morphoAave.checkBalance(weth.address)).toString());
-        console.log("Vault WETH Bal", (await weth.connect(daniel).balanceOf(vault.address)).toString());
-        console.log("Buffer        ", (await vault.vaultBuffer()).toString());
-        console.log('-------------------------------------------')
-      }
-
-      await log()
-
-      const amount = parseEther("100")
+      const amount = parseEther("10")
 
       // Mint
       await vault.connect(daniel)["mint()"]({
         value: amount
       })
-      // await vault.connect(daniel).allocate()
-      // await vault.connect(daniel).rebase()
 
       const balance = await oeth.connect(daniel).balanceOf(daniel.address)
       console.log("Balance after mint", balance.toString())
 
-
-      await log()
       // Advance time by 30d
       await advanceTime(86400 * 30);
 
       // Rebase
       await vault.connect(daniel).rebase()
-
-      await log()
-      // // Advance time again
-      // await advanceTime(172800);
       
       const balance2 = await oeth.connect(daniel).balanceOf(daniel.address)
-      console.log("Balance after rebase", balance2.toString())
+      console.log("Balance after some time", balance2.toString())
 
-      await log()
+      expect(balance2).to.be.gt(balance)
     })
   })
 })

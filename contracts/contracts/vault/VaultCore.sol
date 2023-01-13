@@ -22,8 +22,6 @@ import { IVault } from "../interfaces/IVault.sol";
 import { IBuyback } from "../interfaces/IBuyback.sol";
 import "./VaultStorage.sol";
 
-import "hardhat/console.sol";
-
 contract VaultCore is VaultStorage {
     using SafeERC20 for IERC20;
     // using SafeERC20 for IWETH9;
@@ -58,32 +56,20 @@ contract VaultCore is VaultStorage {
         require(msg.value > 0, "Amount must be greater than 0");
         emit Mint(msg.sender, msg.value);
 
-        console.log("1. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("1. totalSupply: %s", oETH.totalSupply());
-
         // Rebase must happen before any transfers occur.
         if (msg.value >= rebaseThreshold && !rebasePaused) {
             _rebase();
         }
 
-        console.log("2. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("2. totalSupply: %s", oETH.totalSupply());
-
         // Convert ETH to WETH 
         IWETH9(address(wETH)).deposit{value: msg.value}();
-        wETH.safeTransferFrom(msg.sender, address(this), msg.value);
 
         // Mint matching OETH
         oETH.mint(msg.sender, msg.value);
         
-        console.log("3. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("3. totalSupply: %s", oETH.totalSupply());
-
         if (msg.value >= autoAllocateThreshold) {
             _allocate();
         }
-        console.log("4. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("4. totalSupply: %s", oETH.totalSupply());
     }
 
     /**
@@ -94,31 +80,20 @@ contract VaultCore is VaultStorage {
 
         emit Mint(msg.sender, _amount);
 
-        console.log("1. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("1. totalSupply: %s", oETH.totalSupply());
-
         // Rebase must happen before any transfers occur.
         if (_amount >= rebaseThreshold && !rebasePaused) {
             _rebase();
         }
-
-        console.log("2. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("2. totalSupply: %s", oETH.totalSupply());
 
         // Transfer WETH to Vault
         wETH.safeTransferFrom(msg.sender, address(this), _amount);
 
         // Mint matching OETH
         oETH.mint(msg.sender, _amount);
-        
-        console.log("3. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("3. totalSupply: %s", oETH.totalSupply());
 
         if (_amount >= autoAllocateThreshold) {
             _allocate();
         }
-        console.log("4. oETH balance: %s", oETH.balanceOf(msg.sender));
-        console.log("4. totalSupply: %s", oETH.totalSupply());
     }
 
     /**
@@ -222,19 +197,6 @@ contract VaultCore is VaultStorage {
             vaultBufferModifier
         );
 
-        console.log(
-            "vaultValue: %s, strategiesValue: %s, calculatedTotalValue: %s",
-            vaultValue,
-            strategiesValue,
-            calculatedTotalValue
-        );
-        console.log(
-            "vaultBufferModifier: %s, wethBalance: %s, allocateAmount: %s",
-            vaultBufferModifier,
-            wethBalance,
-            allocateAmount
-        );
-
         if (allocateAmount > 0 && address(defaultStrategy) != address(0)) {
             wETH.safeTransfer(address(defaultStrategy), allocateAmount);
             defaultStrategy.deposit(address(wETH), allocateAmount);
@@ -261,11 +223,6 @@ contract VaultCore is VaultStorage {
             return;
         }
         uint256 vaultValue = _totalValue();
-        console.log(
-            "oethSupply: %s, vaultValue: %s",
-            oethSupply,
-            vaultValue
-        );
 
         // Yield fee collection
         address _trusteeAddress = trusteeAddress; // gas savings
@@ -281,11 +238,7 @@ contract VaultCore is VaultStorage {
 
         // Only rachet OETH supply upwards
         oethSupply = oETH.totalSupply(); // Final check should use latest value
-        console.log(
-            "oethSupply: %s, vaultValue: %s",
-            oethSupply,
-            vaultValue
-        );
+
         if (vaultValue > oethSupply) {
             oETH.changeSupply(vaultValue);
         }

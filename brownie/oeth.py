@@ -56,6 +56,17 @@ def showBalance():
 
 def mintWithETH(amount = 1):
     vault_core.mint({"amount": eth1 * amount,"from":user.address})
+    vault_core.allocate({"from":user.address})
+    vault_core.rebase({"from":user.address})
 
 def mintWithWETH(amount = 1):
     vault_core.mint(eth1 * amount,{"from":user.address})
+    vault_core.allocate({"from":user.address})
+    vault_core.rebase({"from":user.address})
+
+def sleep():
+    brownie.chain.sleep(30*60*60)
+
+def rebase():
+    vault_core.allocate({"from":user.address})
+    vault_core.rebase({"from":user.address})

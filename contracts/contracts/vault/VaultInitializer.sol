@@ -28,9 +28,9 @@ contract VaultInitializer is VaultStorage {
         // Initial Vault buffer of 0%
         vaultBuffer = 0;
         // Initial allocate threshold of 25 ETH
-        autoAllocateThreshold = 100 ether;
+        autoAllocateThreshold = 30 ether;
         // Threshold for rebasing
-        rebaseThreshold = 50 ether;
+        rebaseThreshold = 10 ether;
         // Initialize all strategies
         allStrategies = new address[](0);
     }

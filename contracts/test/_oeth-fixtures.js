@@ -55,9 +55,19 @@ async function oethFixture() {
       await weth.connect(user).approve(vault.address, ethers.utils.parseEther("999999999999999999999"))
     }
 
+    console.log('-------------------------------------------')
+    // console.log("Vault value", (await vault.totalValue()).toString())
+    console.log("Vault Balance ", (await vault.checkBalance()).toString())
+    console.log("OETH Supply   ", (await oeth.totalSupply()).toString())
+    console.log("Vault WETH Bal", (await weth.connect(daniel).balanceOf(vault.address)).toString());
+    console.log("Matt Bal      ", (await oeth.connect(matt).balanceOf(matt.address)).toString());
+    console.log("Josh Bal      ", (await oeth.connect(josh).balanceOf(josh.address)).toString());
+    console.log("Anna Bal      ", (await oeth.connect(anna).balanceOf(anna.address)).toString());
+    console.log('-------------------------------------------')
+
     for (const user of [matt, josh, anna]) {
       // Mint some OETH
-      const value = ethers.utils.parseEther("1")
+      const value = ethers.utils.parseEther("10")
       await vault.connect(user)["mint()"]({
         value
       })
@@ -69,9 +79,6 @@ async function oethFixture() {
       console.log("Matt Bal      ", (await oeth.connect(matt).balanceOf(matt.address)).toString());
       console.log("Josh Bal      ", (await oeth.connect(josh).balanceOf(josh.address)).toString());
       console.log("Anna Bal      ", (await oeth.connect(anna).balanceOf(anna.address)).toString());
-      console.log("Matt Bal      ", (await oeth.connect(matt).creditsBalanceOf(matt.address)).toString());
-      console.log("Josh Bal      ", (await oeth.connect(josh).creditsBalanceOf(josh.address)).toString());
-      console.log("Anna Bal      ", (await oeth.connect(anna).creditsBalanceOf(anna.address)).toString());
       console.log('-------------------------------------------')
   
     }

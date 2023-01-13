@@ -83,7 +83,7 @@ forkOnlyDescribe('ForkTest: OETH', function () {
       const fixture = await loadFixture(oethFixture);
       const { vault, daniel, oeth } = fixture
       
-      const amount = parseEther("10")
+      const amount = parseEther("100")
 
       // Mint
       await vault.connect(daniel)["mint()"]({
